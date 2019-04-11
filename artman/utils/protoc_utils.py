@@ -37,11 +37,8 @@ class _SimpleProtoParams(object):
     def code_root(self, output_dir):
         return self.params.code_root(output_dir)
 
-    def proto_plugin_path(self, plugin_args=None):
-        return None
-
     def plugin_out_param(self, output_dir, plugin_args=None):
-        return None
+        return []
 
     def lang_out_param(self, output_dir, with_grpc):
         return '--{}_out={}'.format(self.language, self.code_root(output_dir))
@@ -69,18 +66,14 @@ class _JavaProtoParams(_SimpleProtoParams):
     def code_root(self, output_dir):
         return self.params.code_root(output_dir)
 
-    def proto_plugin_path(self):
-        return subprocess.check_output(
-            ['which', 'gapic_plugin.py'],
-            stderr=subprocess.STDOUT).strip().decode('utf-8')
-
     def plugin_out_param(self, output_dir, plugin_args=None):
         # Java proto plugin requires the gapic yaml as a plugin arg
         if plugin_args:
-            return '--plgn_out={}:{}'.format(plugin_args,
-                                             self.code_root(output_dir))
-        else:
-            return None
+            return [
+                '--java_resource_names_out=%s' % self.code_root(output_dir),
+                '--java_resource_names_opt=%s' % plugin_args,
+            ]
+        return []
 
     def grpc_plugin_path(self, toolkit_path):
         return task_utils.get_java_tool_path(toolkit_path, 'protoGenGrpcJavaExe')
@@ -249,11 +242,7 @@ def protoc_proto_params(proto_params, pkg_dir, gapic_yaml, with_grpc):
     if lang_param:
         params += lang_param.split(' ')
     # plugin out must come after lang out
-    plugin_param = proto_params.proto_plugin_path()
-    plugin_out = proto_params.plugin_out_param(pkg_dir, gapic_yaml)
-    if plugin_param and plugin_out:
-        params.append('--plugin=protoc-gen-plgn={}'.format(plugin_param))
-        params.append(plugin_out)
+    params += proto_params.plugin_out_param(pkg_dir, gapic_yaml)
     return params
 
 
